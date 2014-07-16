@@ -24,13 +24,14 @@ mode        : selfcontained # {standalone, draft}
   - $A$ is independent of $B^c$
   - $A^c$ is independent of $B^c$
 
+$A^c^ means "A complement"
 
 ---
 
 ## Example
 
 - What is the probability of getting two consecutive heads?
-- $A = \{\mbox{Head on flip 1}\}$ ~ $P(A) = .5$
+- $A = \{\mbox{Head on flip 1}\}$ ~ $P(A) = .5$   ("~" means "i.e.")
 - $B = \{\mbox{Head on flip 2}\}$ ~ $P(B) = .5$
 - $A \cap B = \{\mbox{Head on flips 1 and 2}\}$
 - $P(A \cap B) = P(A)P(B) = .5 \times .5 = .25$ 
@@ -58,7 +59,7 @@ mode        : selfcontained # {standalone, draft}
 
 We will use the following fact extensively in this class:
 
-*If a collection of random variables $X_1, X_2, \ldots, X_n$ are independent, then their joint distribution is the product of their individual densities or mass functions*
+*_If_ a collection of random variables $X_1, X_2, \ldots, X_n$ are _independent_, then their joint distribution is the product of their individual densities or mass functions*
 
 *That is, if $f_i$ is the density for random variable $X_i$ we have that*
 $$
@@ -84,6 +85,12 @@ $$
   $$
   f(x_1,\ldots,x_n) = \prod_{i=1}^n p^{x_i} (1 - p)^{1-x_i} = p^{\sum x_i} (1 - p)^{n - \sum x_i}
   $$
+  
+- that means:  
+  $$
+  p(1, 0, 0, 1) = p(1, 1, 0, 0) = p(0, 0, 1, 1)
+  $$ 
+  because it depends only on the sum of successes (ones)
 
 ---
 
@@ -96,7 +103,7 @@ $$
 - The following are useful facts about covariance
   1. $Cov(X, Y) = Cov(Y, X)$
   2. $Cov(X, Y)$ can be negative or positive
-  3. $|Cov(X, Y)| \leq \sqrt{Var(X) Var(y)}$
+  3. $|Cov(X, Y)| \leq \sqrt{Var(X) Var(y)} = sd(X) * sd(Y)$
 
 ---
 
@@ -109,11 +116,13 @@ $$
 
   1. $-1 \leq Cor(X, Y) \leq 1$
   2. $Cor(X, Y) = \pm 1$ if and only if $X = a + bY$ for some constants $a$ and $b$
+     i.e. perfect correlation means linear relationship between $X$ and $Y$
   3. $Cor(X, Y)$ is unitless
   4. $X$ and $Y$ are **uncorrelated** if $Cor(X, Y) = 0$ 
   5.  $X$ and $Y$ are more positively correlated, the closer $Cor(X,Y)$ is to $1$
   6.  $X$ and $Y$ are more negatively correlated, the closer $Cor(X,Y)$ is to $-1$
 
+This is the _population_ correlation, not the sample correlation (the sample correlation is an estimate of the population correlation).
 ---
 
 ## Some useful results
@@ -143,15 +152,23 @@ $$
   \end{eqnarray*}
 $$
 
+That is, the variance of the mean is $\frac{\sigma^2}{n}$ ($\sigma is sd).  
+
 ---
 
 ## Some comments
 
-- When $X_i$ are independent with a common variance $Var(\bar X) = \frac{\sigma^2}{n}$
+- When $X_i$ are independent with a common variance, then $Var(\bar X) = \frac{\sigma^2}{n}$
 - $\sigma/\sqrt{n}$ is called *the standard error* of the sample mean
 - The standard error of the sample mean is the standard deviation of the distribution of the sample mean
 - $\sigma$ is the standard deviation of the distribution of a single observation
 - Easy way to remember, the sample mean has to be less variable than a single observation, therefore its standard deviation is divided by a $\sqrt{n}$
+
+Example:  
+
+- Standard deviation of a single die roll: $\sigma$  
+- Standard deviation of 10 die rolls: $\sigma/\sqrt{n}$: "the standard deviation of the _distribution_ of the sample mean"
+
 
 ---
 
@@ -206,3 +223,9 @@ hist(father.son$sheight, col="lightblue", border="black")
 ```{r}
 round(c(sum( (x - mean(x) )^ 2) / (n-1), var(x), var(x) / n, sd(x), sd(x) / sqrt(n)),2)
 ```
+
+$var(x)$: the variance of the _this particular_ distribution (in the histogram): how variable are sons' heights
+$var(x)/n$: how variable are _averages_ of sons' heights! To find out this variance, we'd need to have many samples of sons' heights and calculate
+their averages. But (under the assumption of iid) we don't need this, because we can estimate the this variance with $var(x)/n$.
+
+
