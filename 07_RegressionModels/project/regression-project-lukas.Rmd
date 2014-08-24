@@ -49,11 +49,11 @@ Let's check how the variables correlate with mpg:
 ```{r echo=FALSE}
 cors <- cor(mtcars$mpg,mtcars[,-1])
 cor.tests <- sapply(mtcars[, -1], cor.test, mtcars$mpg)
-
 alphas <- sapply(0:9, function(i){ cor.tests[i*9+3]} )
-cors
-sapply(alphas, function(alpha){ alpha > 0.05 })
 
+results <- rbind(cors, alphas)
+rownames(results) <- c("corr", "p-value")
+results
 ```
 
 Since we want to know the relationship between transmission and mpg, let's check the corrations between the variables and transmission:
@@ -62,24 +62,25 @@ other.vars <- c(2:8, 10, 11)
 cors <- cor(mtcars$am,mtcars[,other.vars])
 cor.tests <- sapply(mtcars[,other.vars], cor.test, mtcars$am)
 alphas <- sapply(0:9, function(i){ cor.tests[i*9+3]} )
-cors
-sapply(alphas, function(alpha){ alpha > 0.05 })
+
+results <- rbind(cors, alphas)
+rownames(results) <- c("corr", "p-value")
+results
 ```
 
-Display the mpg for both automatic and manual transmission cars. Since - in theory - the number of cylinder might have an influence on the relationship between transmission and mpg, color the data points by the number of cylinders:
+Since - in theory - the number of cylinder might have an influence on the relationship between transmission and mpg, plot mpg for 4, 6, and 8 cylinders separately and color the data points by transmission type:
 ```{r}
-plot(cars$am, cars$mpg, ylab="mpg")
-points(jitter(as.numeric(cars$am), factor=0.5), cars$mpg, col=sapply(cars$cyl, switch, 'red', 'green', 'black'), pch=16)
-legend(x="topleft", legend=c('4 cylinders', '6 cylinders', '8 cylinders'), pch=16, col=c('red', 'green', 'black'), cex=0.8, inset=0.03)
+par(mfrow=c(1,2))
+plot(cars$cyl, cars$mpg, ylab="mpg", xlab="cylinders")
+points(jitter(as.numeric(cars$cyl), factor=0.5), cars$mpg, col=sapply(cars$am, switch, 'red', 'green'), pch=16)
+legend(x="topleft", legend=c('manual', 'automatic'), pch=16, col=c('red', 'green'), cex=0.8, inset=0.03)
+
+plot(cars$gear, cars$mpg, ylab="mpg", xlab="gears")
+points(jitter(as.numeric(cars$gear), factor=0.5), cars$mpg, col=sapply(cars$am, switch, 'red', 'green'), pch=16)
+legend(x="topleft", legend=c('manual', 'automatic'), pch=16, col=c('red', 'green'), cex=0.8, inset=0.03)
 
 ```
 
-It looks like manual transmission cars are doing better in terms of mpg.
-
-Get a sense of how variables correlate with each other:
-```{r}
-pairs(cars,panel=panel.smooth,main="mtcars", col=ifelse(cars$am=='manual', 'red', 'black'))
-```
 
 In order to find variables that we should adjust for, find out which variables `am` depends on.   
 
@@ -92,7 +93,7 @@ So the variables `cyl` and `gear` differ, depending on `am`.
 
 Influence of the numerical variables:
 ```{r}
-sapply( c("disp", "hp", "drat", "wt", "qsec"), function(var){ t.test( cars[,var] ~ cars$am)[3] } )
+rbind( sapply( c("disp", "hp", "drat", "wt", "qsec"), function(var){ t.test( cars[,var] ~ cars$am)[3] } ) )
 ```
 
 So the variables`disp`, `drat`, and `wt` differ depending on `am`.
@@ -211,7 +212,7 @@ plot(fit.simple, which=1)
 plot(fit.simple, which=2)
 ```
 
-No data point has an special influence:
+No data point has a special influence:
 ```{r}
  range(hatvalues(fit.simple))
 [1] 0.05263158 0.07692308
@@ -219,33 +220,41 @@ No data point has an special influence:
 
 ## Multiple regression
 
+Car weight is related to both transmission and mpg. Looking at the three plots relating `disp`, `drat`, and `wt` to `mpg`, the difference between automatic and manual transmission seemed to be the greatest in the case of weight. So let's first adjust for weight:
+```{r}
+fit.wt <- lm(mpg ~ am + wt, data=cars)
+summary(fit.wt)
+```
+This model explains much more variance than the model that includes transmission alone (75% as opposed to 36%).  
+Adjusting for weight, we see that difference in transmission disappears.
 
+Let's include the interaction term:
+```{r}
+fit.am.wt <- lm(mpg ~ am*wt, data=cars)
+summary(fit.am.wt)
+```
 
-multiple regression:
-summary(lm(Fertility ~ . , data = swiss))
+Now we see that there is in fact a difference between automatic and manual transmission: the mpg of both manual and automatic transmission cars goes down the heavier the car, but the mpg go down much steeper for manual than for automatic transmission cars. Still, the mean mpg of manual transmission cars is significantly higher than for automatic transmission cars.
+The model with the interaction explains 83% of variance (as opposed to 75% for the model without the interaction term).
 
-* Make a boxplot for expl.Anal
-* also just a scatter plot, with differently colored subgroups (red=manual, black=automatic, e.g. )
-  possible to print both lm-lines in same plot (after fitting two different models, one for manual, one for automatic), see 02_02_c, p.28
-  also see p.29 for 2 lines in same model
+Based on the relationships established in the exploratory section, `cyl` have an influence on both `mpg` and transmission. Diagram XX shows a similar relationship between transmission, cylinders, and mpg as between transmission, weight, and mpg.
 
+Including cylinders to the interaction (`mpg ~ am*wt + cyl`) makes a significant, but only small difference: it adds only 5% explained variance.
+This small additional value of including cylinders is also confirmed by an anova between the models:
+```{r}
+fit1 <- lm(mpg ~ am, data=cars)
+fit2 <- update(fit1, mpg ~ am + wt, data=cars)
+fit3 <- update(fit1, mpg ~ am + wt + am*wt, data=cars)
+fit4 <- update(fit1, mpg ~ am + wt + am*wt + cyl, data=cars)
+anova(fit1, fit2, fit3, fit4)
+```
 
-Parameter interpretation: 02_02, p.5 
+Cylinder is of course related with weight, so it doesn't explain much more.
 
-Achtung: auch die 'unadjusted' Parameter anschauen, dh nur mpg ~ var1, ohne korrigienden Einfluesse der anderen Variablen. Die
-Zusammenhaenge koennen sich drehen (vgl Agriculture on Fertility in Swiss)!
-
-Modell-Wahl: 
-
-* 02_02, p8
-* 02_05, p14: nested testing of a model with anova & update
-
-Need to use Dummy Variable!
-
-Diagnostics:
-
-residualplot:
- plot(fit, which=1)
+Trying out various models with additional variables, the only one that makes a significant difference is `mpg ~ aml + wt + cyl`.
+```{r}
+summary(fit3)
+```
 
 
 ## Is an automatic transmission better for MPG?
