@@ -7,4 +7,12 @@
 
 # Example code in package build process
 *-Ex.R
+*.zip
+data
+*.png
+*.jpg
+*.csv
+*.rda  $ data files
+
+
 
