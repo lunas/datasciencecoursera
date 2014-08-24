@@ -1,0 +1,259 @@
+---
+title: "Is an automatic or manual transmission better for MPG?"
+author: "Lukas Nick"
+date: "August 24 2014"
+output: pdf_document
+---
+
+# Executive summary
+
+# Question
+
+1. Is an automatic transmission better for MPG?
+2. Quantify the MPG difference between automatic and manual transmissions.
+3. Does the answers to 1) and 2) depend on other variables?
+  * number of cylinders
+  * weight
+  * displacementnumber of forward gears
+  * ...?
+  
+  
+  
+# Data
+
+I try to answer these questions based on the dataset mtcars, which has 32 cars and the following variables:
+
+```{r echo=FALSE}
+setwd("~/Documents/ml/datascience/courses/07_RegressionModels/project/")
+library(datasets)
+data(mtcars)
+
+# Create factors for the categorial variables
+cars <- mtcars
+cars$am <- factor(mtcars$am, levels=c(0,1), labels=c("automatic", "manual"))
+cars$cyl <- factor(mtcars$cyl)
+cars$vs <- factor(mtcars$vs, levels=c(0,1), labels=c("s", "v"))
+cars$gear <- factor(mtcars$gear)
+cars$carb <- factor(mtcars$carb)
+
+length(rownames(cars))
+names(cars)
+```
+
+
+## Results
+
+### Exploratory results
+
+Let's check how the variables correlate with mpg:
+```{r echo=FALSE}
+cors <- cor(mtcars$mpg,mtcars[,-1])
+cor.tests <- sapply(mtcars[, -1], cor.test, mtcars$mpg)
+
+alphas <- sapply(0:9, function(i){ cor.tests[i*9+3]} )
+cors
+sapply(alphas, function(alpha){ alpha > 0.05 })
+
+```
+
+Since we want to know the relationship between transmission and mpg, let's check the corrations between the variables and transmission:
+```{r}
+other.vars <- c(2:8, 10, 11)
+cors <- cor(mtcars$am,mtcars[,other.vars])
+cor.tests <- sapply(mtcars[,other.vars], cor.test, mtcars$am)
+alphas <- sapply(0:9, function(i){ cor.tests[i*9+3]} )
+cors
+sapply(alphas, function(alpha){ alpha > 0.05 })
+```
+
+Display the mpg for both automatic and manual transmission cars. Since - in theory - the number of cylinder might have an influence on the relationship between transmission and mpg, color the data points by the number of cylinders:
+```{r}
+plot(cars$am, cars$mpg, ylab="mpg")
+points(jitter(as.numeric(cars$am), factor=0.5), cars$mpg, col=sapply(cars$cyl, switch, 'red', 'green', 'black'), pch=16)
+legend(x="topleft", legend=c('4 cylinders', '6 cylinders', '8 cylinders'), pch=16, col=c('red', 'green', 'black'), cex=0.8, inset=0.03)
+
+```
+
+It looks like manual transmission cars are doing better in terms of mpg.
+
+Get a sense of how variables correlate with each other:
+```{r}
+pairs(cars,panel=panel.smooth,main="mtcars", col=ifelse(cars$am=='manual', 'red', 'black'))
+```
+
+In order to find variables that we should adjust for, find out which variables `am` depends on.   
+
+The categorial variables:
+```{r }
+sapply( c("cyl", "vs", "gear", "carb"), function(cat){ summary( table(cars[,cat], cars$am) )} )
+```
+
+So the variables `cyl` and `gear` differ, depending on `am`.
+
+Influence of the numerical variables:
+```{r}
+sapply( c("disp", "hp", "drat", "wt", "qsec"), function(var){ t.test( cars[,var] ~ cars$am)[3] } )
+```
+
+So the variables`disp`, `drat`, and `wt` differ depending on `am`.
+
+Let's look at some plots to get a feeling of the data distributions:
+
+Categorical variables $cyl$ and $gear$:
+```{r}
+layout(matrix(c(1,2),1,2))
+plot(cars$cyl, cars$mpg, xlab="cylinders", ylab="mpg")
+points(jitter(as.numeric(cars$cyl), factor=0.5), cars$mpg, col=ifelse(cars$am=='manual', 'red', 'black'))
+legend(x="topright", legend=c('manual', 'automatic'), pch=16, col=c('red', 'black'), cex=0.8, inset=0.03)
+
+plot(cars$gear, cars$mpg, xlab="gears", ylab="mpg")
+points(jitter(as.numeric(cars$gear), factor=0.5), cars$mpg, col=ifelse(cars$am=='manual', 'red', 'black'), pch=16)
+legend(x="topright", legend=c('manual', 'automatic'), pch=16, col=c('red', 'black'), cex=0.8, inset=0.03)
+
+```
+
+Numerical variables $disp$, $drat$, and $wt$:
+```{r echo=FALSE}
+library(ggplot2)
+
+# Multiple plot function
+# FROM: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  require(grid)
+
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+
+  numPlots = length(plots)
+
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+
+ if (numPlots==1) {
+    print(plots[[1]])
+
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+p1 <- qplot(disp, mpg, data=cars, geom=c("point", "smooth"), 
+      method="lm", formula=y~x, color=am, 
+      main="Regression of mpg on disp", xlab="disp", ylab="mpg") + theme_bw() + theme(legend.position = c(0.8, 0.8))
+
+p2 <- qplot(drat, mpg, data=cars, geom=c("point", "smooth"), 
+      method="lm", formula=y~x, color=am, 
+      main="Regression of mpg on drat", xlab="drat", ylab="mpg") + theme_bw() + theme(legend.position = c(0.2, 0.8))
+
+p3 <- qplot(wt, mpg, data=cars, geom=c("point", "smooth"), 
+      method="lm", formula=y~x, color=am, 
+      main="Regression of mpg on weight", xlab="wt", ylab="mpg") + theme_bw() + theme(legend.position = c(0.8, 0.8))
+
+multiplot(p1, p2, p3, cols=2)
+```
+
+# Regression results
+
+## Simple linear regression
+
+Above boxplot (transmission vs mpg) suggested that manual transmission has higher mpg values than automatic transmission. 
+A simple linear regression of `mpg` on `am` confirms this:
+```{r}
+fit <- lm( mpg ~ am, data=cars)
+summary(fit)[4]
+```
+
+The mean of mpg for the manual transmission cars is 7.2 miles higher than for the automatical transmission cars, a significant difference (p=0.0003).
+
+### Confidence intervals
+
+With 95% confidence we can estimate that difference between automatic and manual transmission cars is between 3.65 and 10.85 miles per gallon.
+```{r echo=FALSE}
+sumCoef <- summary(fit)$coefficients
+est.automatic <- sumCoef[1,1] + c(-1, 1) * qt(.975, df = fit$df) * sumCoef[1, 2]
+est.diff      <- sumCoef[2,1] + c(-1, 1) * qt(.975, df = fit$df) * sumCoef[2, 2]
+coef.tab <- rbind(est.automatic, est.diff)
+colnames(coef.tab) <- c("lower bound", "upper bound")
+rownames(coef.tab) <- c("mean automatic", "manual - automatic")
+coef.tab
+```
+
+### Diagnostics for the simple regression.
+
+The residuals of the simple regression seem to be randomly and normally distributed:
+```{r echo=FALSE}
+par(mfrow=c(1,2))
+plot(fit.simple, which=1)
+plot(fit.simple, which=2)
+```
+
+No data point has an special influence:
+```{r}
+ range(hatvalues(fit.simple))
+[1] 0.05263158 0.07692308
+```
+
+## Multiple regression
+
+
+
+multiple regression:
+summary(lm(Fertility ~ . , data = swiss))
+
+* Make a boxplot for expl.Anal
+* also just a scatter plot, with differently colored subgroups (red=manual, black=automatic, e.g. )
+  possible to print both lm-lines in same plot (after fitting two different models, one for manual, one for automatic), see 02_02_c, p.28
+  also see p.29 for 2 lines in same model
+
+
+Parameter interpretation: 02_02, p.5 
+
+Achtung: auch die 'unadjusted' Parameter anschauen, dh nur mpg ~ var1, ohne korrigienden Einfluesse der anderen Variablen. Die
+Zusammenhaenge koennen sich drehen (vgl Agriculture on Fertility in Swiss)!
+
+Modell-Wahl: 
+
+* 02_02, p8
+* 02_05, p14: nested testing of a model with anova & update
+
+Need to use Dummy Variable!
+
+Diagnostics:
+
+residualplot:
+ plot(fit, which=1)
+
+
+## Is an automatic transmission better for MPG?
+
+## How big is the difference in MPG between automatic and manual transmission?
+
+# Conclusions
+
+02_02, p.20: counts violate assumption of normality, so validity of model is limited. Should take log?
+
+

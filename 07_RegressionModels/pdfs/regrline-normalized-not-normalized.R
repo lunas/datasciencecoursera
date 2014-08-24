@@ -1,0 +1,5 @@
+par(mfrow=c(1,2))
+plot(mtcars$wt, mtcars$mpg, main="Non-centered data", xlab="weight, raw", ylab="mpg, raw")
+abline(f2$coef)
+plot(weight, miles, main="Normalized and standardized data", xlab="weight, mean=0, sigma=1", ylab="mph, mean=0, sigma=1")
+abline(f1$coef)
