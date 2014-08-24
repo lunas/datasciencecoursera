@@ -1,23 +1,22 @@
 ---
 title: "Is an automatic or manual transmission better for MPG?"
-author: "Lukas Nick"
-date: "August 24 2014"
 output: pdf_document
+fontsize: 10pt
+geometry: margin=0.5in
 ---
-\fontsize{8}{14}
+
+
 
 # Executive summary
 
+Using linear regression models, this report looks at the questions whether manual or automatic transmission cars have higher mpg, and how big the difference is. Mpg of manual transmission cars is significantly higher: by 7.2 miles. This result is qualified by controlling for weight: the difference between manual and automatic transmission cars is smaller for heavier cars.
+
 # Questions
 
-This report tries to answer two questions:
+This report tries to answer two questions, based on the mtcars dataset (n=32):
 
 1. Is an automatic transmission better for MPG?
 2. Quantify the MPG difference between automatic and manual transmissions.  
-  
-# Data
-
-I try to answer these questions based on the dataset mtcars, which has 32 cars and the following variables:
 
 ```{r echo=FALSE}
 setwd("~/Documents/ml/datascience/courses/07_RegressionModels/project/")
@@ -31,134 +30,47 @@ cars$cyl <- factor(mtcars$cyl)
 cars$vs <- factor(mtcars$vs, levels=c(0,1), labels=c("s", "v"))
 cars$gear <- factor(mtcars$gear)
 cars$carb <- factor(mtcars$carb)
-
-names(cars)
 ```
-
 
 # Exploratory analysis
 
-Let's check how the variables correlate with mpg:
+All variables correlate significantly with `mpg`, between 0.42 and 0.87 (results omitted for brevity).
 ```{r echo=FALSE}
 cors <- cor(mtcars$mpg,mtcars[,-1])
 cor.tests <- sapply(mtcars[, -1], cor.test, mtcars$mpg)
 alphas <- sapply(0:9, function(i){ cor.tests[i*9+3]} )
 
-results <- rbind(cors, alphas)
-rownames(results) <- c("corr", "p-value")
-results
+#results <- rbind(cors, alphas)
+#rownames(results) <- c("corr", "p-value")
+#results
 ```
 
-In order to find variables that we should adjust for, find out which variables `am` depends on.   
-
-The categorial variables:
+To find variables that should be adjusted for, I used chi-square tests to check the relationship between the categorial variables and `am`. It turns out that the variables `cyl` and `gear` differ depending on `am` (results omitted for brevity).
 ```{r  echo=FALSE}
-sapply( c("cyl", "vs", "gear", "carb"), function(cat){ summary( table(cars[,cat], cars$am) )} )
+result <- sapply( c("cyl", "vs", "gear", "carb"), function(cat){ summary( table(cars[,cat], cars$am) )} )
 ```
 
-So the variables `cyl` and `gear` differ, depending on `am`.
 
-Influence of the numerical variables:
 ```{r echo=FALSE}
-rbind( sapply( c("disp", "hp", "drat", "wt", "qsec"), function(var){ t.test( cars[,var] ~ cars$am)[3] } ) )
+results <- rbind( sapply( c("disp", "hp", "drat", "wt", "qsec"), function(var){ t.test( cars[,var] ~ cars$am)[3] } ) )
 ```
+For the numerical variables: `disp`, `drat`, and `wt` differ depending on `am` (based on t-tests, results omitted for brevity).
 
-So the variables`disp`, `drat`, and `wt` differ depending on `am`.
-
-Let's look at some plots to get a feeling of the data distributions.   
-Since - in theory, and also according to above t-tests - the number of cylinder might have an influence on the relationship between transmission and mpg, plot mpg for 4, 6, and 8 cylinders separately and color the data points by transmission type. Do the same for `gear`. 
-```{r echo=FALSE}
-par(mfrow=c(1,2))
-plot(cars$cyl, cars$mpg, ylab="mpg", xlab="cylinders")
-points(jitter(as.numeric(cars$cyl), factor=0.5), cars$mpg, col=sapply(cars$am, switch, 'red', 'green'), pch=16)
-legend(x="topright", legend=c('manual', 'automatic'), pch=16, col=c('red', 'green'), cex=0.8, inset=0.03)
-
-plot(cars$gear, cars$mpg, ylab="mpg", xlab="gears")
-points(jitter(as.numeric(cars$gear), factor=0.5), cars$mpg, col=sapply(cars$am, switch, 'red', 'green'), pch=16)
-legend(x="topleft", legend=c('manual', 'automatic'), pch=16, col=c('red', 'green'), cex=0.8, inset=0.03)
-
-```
-
-Now let's *look* at the relationships between `mpg`, `am` and the numerical variables $disp$, $drat$, and $wt$:
-```{r echo=FALSE}
-library(ggplot2)
-
-# Multiple plot function
-# FROM: http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
-# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
-# - cols:   Number of columns in layout
-# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
-#
-# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
-# then plot 1 will go in the upper left, 2 will go in the upper right, and
-# 3 will go all the way across the bottom.
-#
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  require(grid)
-
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-
-  numPlots = length(plots)
-
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                    ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-
- if (numPlots==1) {
-    print(plots[[1]])
-
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
-p1 <- qplot(disp, mpg, data=cars, geom=c("point", "smooth"), 
-      method="lm", formula=y~x, color=am, 
-      main="Regression of mpg on disp", xlab="disp", ylab="mpg") + theme_bw() + theme(legend.position = c(0.8, 0.8))
-
-p2 <- qplot(drat, mpg, data=cars, geom=c("point", "smooth"), 
-      method="lm", formula=y~x, color=am, 
-      main="Regression of mpg on drat", xlab="drat", ylab="mpg") + theme_bw() + theme(legend.position = c(0.2, 0.8))
-
-p3 <- qplot(wt, mpg, data=cars, geom=c("point", "smooth"), 
-      method="lm", formula=y~x, color=am, 
-      main="Regression of mpg on weight", xlab="wt", ylab="mpg") + theme_bw() + theme(legend.position = c(0.8, 0.8))
-
-multiplot(p1, p2, p3, cols=2)
-```
+Figure 1 shows the relationship between `mpg` and `am` both depending on `cyl` and `gear`. 
+Figure 2 to 4 show the relationships between `mpg` and `am` depending on `dips`, `drat`, and `wt`.
 
 # Regression results: manual transmission cars have better mpg than automatic transmission cars
 
-## Simple linear regression
-
-Above boxplots (see fig. XX) suggested that manual transmission cars have higher mpg values than automatic transmission cars. 
-A simple linear regression of `mpg` on `am` confirms this:
+The boxplots (see figure 1) suggest that manual transmission cars have higher mpg values than automatic transmission cars. A simple linear regression of `mpg` on `am` confirms this:
 ```{r echo=FALSE}
 fit <- lm( mpg ~ am, data=cars)
+simple.fit <- fit
 summary(fit)[4]
 ```
 
 The mean of mpg for the **manual transmission cars is 7.2 miles higher than for the automatical transmission cars**, a significant difference (p=0.0003).
 
-### Confidence intervals
-
-With 95% confidence we can estimate that difference between automatic and manual transmission cars is between 3.65 and 10.85 miles per gallon.
+With 95% confidence we can estimate that the difference between automatic and manual transmission cars is between 3.65 and 10.85 miles per gallon.
 ```{r echo=FALSE}
 sumCoef <- summary(fit)$coefficients
 est.automatic <- sumCoef[1,1] + c(-1, 1) * qt(.975, df = fit$df) * sumCoef[1, 2]
@@ -169,23 +81,14 @@ rownames(coef.tab) <- c("mean automatic", "manual - automatic")
 coef.tab
 ```
 
-### Diagnostics for the simple regression.
-
-The residuals of the simple regression seem to be random and normally distributed:
-```{r echo=FALSE}
-par(mfrow=c(1,2))
-plot(fit, which=1)
-plot(fit, which=2)
-```
+The residuals of the simple regression seem to be random and normally distributed: see figure 5.
 
 No data point has an overly strong influence:
 ```{r}
  range(hatvalues(fit))
 ```
 
-## Multiple regression: adjusting for weight unveils a complex relationship between transmission and mpg 
-
-Car weight is related to both transmission and mpg. Looking at the three plots relating `disp`, `drat`, and `wt` to `mpg` (see fig. XX), the difference between automatic and manual transmission seemed to be the greatest in the case of weight. So let's first adjust for weight:
+Car weight is related to both transmission and mpg. Looking at the three plots relating `disp`, `drat`, and `wt` to `mpg` (see fig. 2), the difference between automatic and manual transmission seemed to be the greatest in the case of weight. So let's first adjust for weight:
 ```{r echo=FALSE}
 fit.wt <- lm(mpg ~ am + wt, data=cars)
 summary(fit.wt)[4]
@@ -205,25 +108,17 @@ Concretely:
 * if the weight of an automatic transmission car goes up by 1000lbs, the expected mpg drops by roughly 3.8 miles.
 * if the weight of a manual transmission car goes up by 1000lbs, the expected mpg drops only roughly 9.1 miles -- more than twice as fast.
 
-But remember: the mean mpg of manual transmission cars is still significantly higher than for automatic transmission cars.
-
 This model with the interaction explains 83% of variance (as opposed to 75% for the model without the interaction term).
 
-### Including cylinders: significant, but little change
-
-Based on the relationships established in the exploratory section, `cyl` have an influence on both `mpg` and transmission. Figure XX shows a similar relationship between transmission, cylinders, and mpg as between transmission, weight, and mpg.
-
-Including cylinders to the interaction (`mpg ~ am*wt + cyl`) makes a significant, but small difference: it adds only 5% explained variance.
-This small additional value of including cylinders is also confirmed by an anova between the models:
-```{r}
+Based on the relationships established in the exploratory section, `cyl` have an influence on both `mpg` and transmission. Including cylinders to the interaction (`mpg ~ am*wt + cyl`) makes a significant, but small difference: it adds only 5% explained variance.
+This small additional value of including cylinders is confirmed by an anova between the models.
+```{r echo=FALSE}
 fit1 <- lm(mpg ~ am, data=cars)
 fit2 <- update(fit1, mpg ~ am + wt, data=cars)
 fit3 <- update(fit1, mpg ~ am + wt + am*wt, data=cars)
 fit4 <- update(fit1, mpg ~ am + wt + am*wt + cyl, data=cars)
-anova(fit1, fit2, fit3, fit4)
+an <- anova(fit1, fit2, fit3, fit4)
 ```
-
-Cylinder is of course related with weight, so it makes sense that it doesn't explain much more.
 
 # Conclusions
 
@@ -238,3 +133,66 @@ This result is qualified by controlling for weight: the difference in between ma
 Not included in this report are the influences of other variables of the dataset. Some exploratory results suggested that they wouldn't change the relationship of transmission and mpg greatly, but there is some room for further research.
 
 Applying regression to variables like number of cylinders violate the assumption of normality, so the results are somewhat questionable. Still, the visual analysis (looking at the plots) corroborates the regression results.
+
+#Appendix: Figures
+
+Figure 1: Relationship between `mpg` and `am`, depending on `cyl` and `gear`:
+
+```{r echo=FALSE}
+par(mfrow=c(1,2))
+
+plot(cars$cyl, cars$mpg, ylab="mpg", xlab="cylinders")
+points(jitter(as.numeric(cars$cyl), factor=0.5), cars$mpg, col=sapply(cars$am, switch, 'red', 'green'), pch=16)
+legend(x="topright", legend=c('manual', 'automatic'), pch=16, col=c('red', 'green'), cex=0.8, inset=0.03)
+
+plot(cars$gear, cars$mpg, ylab="mpg", xlab="gears")
+points(jitter(as.numeric(cars$gear), factor=0.5), cars$mpg, col=sapply(cars$am, switch, 'red', 'green'), pch=16)
+legend(x="topleft", legend=c('manual', 'automatic'), pch=16, col=c('red', 'green'), cex=0.8, inset=0.03)
+
+```
+
+
+Figure 2: Relationship between `mpg` and `disp` separated by `am`:
+
+```{r echo=FALSE,  fig.height=4, fig.width=8}
+library(ggplot2)
+par(mfrow=c(1, 1))
+
+p1 <- qplot(disp, mpg, data=cars, geom=c("point", "smooth"), 
+      method="lm", formula=y~x, color=am, 
+      main="Regression of mpg on disp", xlab="disp", ylab="mpg") + theme_bw() + theme(legend.position = c(0.8, 0.8))
+
+print(p1)
+```
+
+Figure 3: Relationship between `mpg` and `drat` separated by `am`:
+
+```{r echo=FALSE,  fig.height=4, fig.width=8}
+
+p2 <- qplot(drat, mpg, data=cars, geom=c("point", "smooth"), 
+      method="lm", formula=y~x, color=am, 
+      main="Regression of mpg on drat", xlab="drat", ylab="mpg") + theme_bw() + theme(legend.position = c(0.2, 0.8))
+
+print(p2)
+```
+
+Figure 4: Relationship between `mpg` and `wt` separated by `am`:
+
+```{r echo=FALSE,  fig.height=4, fig.width=8}
+
+p3 <- qplot(wt, mpg, data=cars, geom=c("point", "smooth"), 
+      method="lm", formula=y~x, color=am, 
+      main="Regression of mpg on weight", xlab="wt", ylab="mpg") + theme_bw() + theme(legend.position = c(0.8, 0.8))
+
+print(p1)
+```
+
+Figure 5: Residual plot and plot of distribution for model `mpg` ~ `am`:
+
+```{r echo=FALSE}
+par(mfrow=c(1,2))
+
+plot(simple.fit, which=1)
+plot(simple.fit, which=2)
+```
+
