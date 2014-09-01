@@ -88,7 +88,7 @@ No data point has an overly strong influence:
  range(hatvalues(fit))
 ```
 
-Car weight is related to both transmission and mpg. Looking at the three plots relating `disp`, `drat`, and `wt` to `mpg` (see fig. 2), the difference between automatic and manual transmission seemed to be the greatest in the case of weight. So let's first adjust for weight:
+Car weight is related to both transmission and mpg. Looking at the three plots relating `disp`, `drat`, and `wt` to `mpg` (see fig. 2 to 4), the difference between automatic and manual transmission seemed to be the greatest in the case of weight. So let's adjust for weight:
 ```{r echo=FALSE}
 fit.wt <- lm(mpg ~ am + wt, data=cars)
 summary(fit.wt)[4]
