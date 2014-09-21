@@ -1,0 +1,135 @@
+---
+title: "Practical Machine Learning Project"
+author: "Lukas Nick"
+date: "20. Sept<c3><a4>mber 2014"
+output: html_document
+---
+
+
+## Todo
+
+* Goal:  predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with.
+* Delivery 1: report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did.
+  * link to a Github repo with your R markdown and compiled HTML file describing your analysis
+  * Please constrain the text of the writeup to < 2000 words and the number of figures to be less than 5.
+  * submit a repo with a gh-pages branch so the HTML page can be viewed online
+* Delivery 2: prediction algorithm
+  * apply your machine learning algorithm to the 20 test cases available in the test data above. Please submit your predictions in appropriate format to the programming assignment for automated grading. See the programming assignment for additional details. 
+
+
+## Criteria
+
+* Does the submission build a machine learning algorithm to predict activity quality from activity monitors?
+* Do the authors describe what they expect the out of sample error to be and estimate the error appropriately with cross-validation?
+
+# Predicting body movements based on accelerometer data
+
+## Intro
+
+This project tries to predict 5 classes of behavior based on accelerometers attached to the belt, forearm, arm, and dumbell of 6 participants. Specifically, the participants were asked to perform barbell lifts in 5 different ways.
+
+The dataset consists of 160 variables provided by the accelerometers and 19622 records. For each record, the correct type of behavior (from "A" to "D") is given as well.
+
+## Design
+
+70% of the training data were used for for the actual training. The other 30% were used as cross validation data set to estimate the out-of-sample error.
+
+The random forest algorithm was applied since it is well known to deliver accurate results, and its long processing time is not important for this project.
+
+The results were evaluated based on Accuracy.
+
+## Data preparation
+
+Load the training data set and the test data set.
+```{r}
+library(caret)
+setwd('~/Documents/ml/datascience/courses/08_PracticalMachineLearning/project/')
+train.total <- read.csv('pml-training.csv')
+test  <- read.csv('pml-testing.csv')
+```
+
+Use 70% of the training set to actually train, 30% to create a cross validation dataset.
+```{r}
+set.seet(56937)
+random.sample <- createDataPartition(y=train.total$classe, p=0.7, list=F)
+train <- train.total[ random.sample, ]
+cross.val  <- train.total[-random.sample, ]
+```
+
+## Select features: 
+
+A short exploration of the data revealed that some variables consisted mostly of missings ("NA"). Others had invalid data (for example "#DIV/0!" or empty strings). 
+Such variables were excluded, as well as variables with almost no variance, since those make for poor predictors.
+
+Other variables that should not have any predictive values were excluded, too:
+
+* the row number
+* the user name
+* time stamp data
+
+All other variables were used for the training.
+
+Remove columns with NAs:
+```{r}
+# nearZeroVar returns col-indices of columns with too little variance
+col.skip <- apply(train, 2, function(c) { sum(is.na(c)) > 0 | length(nearZeroVar(c)) > 0 }) 
+keep.cols <- names( train )[ which(!col.skip) ]
+keep.cols <- setdiff( keep.cols, c('X', 'user_name', 'raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp'))
+train <- train[,keep.cols]
+cross.val <- cross.val[, keep.cols]
+```
+
+### Run random forest
+
+```{r cache=TRUE}
+model.file <- 'modelfit.save'
+if (!file.exists(modelfit.save)) {
+  library(randomForest)
+  # create a smaller sample:
+  small.random.sample <- createDataPartition(y=train$classe, p=0.8, list=F)
+  train.small <- train[ small.random.sample, ]
+  #fit <- randomForest( x=train.small[, 1:dim(train)[2]-1], y=train.small$classe, importance=T )
+  fit <- randomForest( x=train[, 1:dim(train)[2]-1], y=train$classe, importance=T )
+  
+  save(fit, file=model.file)
+}
+else {
+  load(model.file)
+}
+```
+
+## Estimate error on cross validation dataset
+
+```{r}
+predict.cross.val <- predict(fit, cross.val)
+confusionMatrix( predict.cross.val, cross.val$classe)
+```
+
+## Predict on the test dataset
+
+Remove columns from the test set that weren't used to train the model.
+```{r}
+keep.test.cols <- setdiff( keep.cols, c('classe'))
+test <- test[, keep.test.cols]
+predict.test <- predict(fit, test)
+```
+
+Safe predictions to files for submission.
+```{r}
+output.dir <- 'predictions'
+if (!file.exists(output.dir)) {
+  dir.create(file.path( getwd(), output.dir))
+}
+setwd(output.dir)
+pml.write.files <- function(predictions) {
+  n = length(predictions)
+  for(i in 1:n) {
+    filename = paste0("problem_id_",i,".txt")
+    write.table( predictions[i], file=filename, quote=FALSE, row.names=FALSE, col.names=FALSE )
+  }
+}
+pml.write.files( predict.test )
+```
+
+
+* use cross validation to estimate out of sample error

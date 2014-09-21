@@ -16,6 +16,7 @@ mode        : selfcontained # {standalone, draft}
 
 
 ```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+library(knitr)
 # make this an external chunk that can be included in any file
 options(width = 100)
 opts_chunk$set(message = F, error = F, warning = F, comment = NA, fig.align = 'center', dpi = 100, tidy = F, cache.path = '.cache/', fig.path = 'fig/')
@@ -37,7 +38,7 @@ knit_hooks$set(plot = knitr:::hook_plot_html)
 * This course covers the basic ideas behind machine learning/prediction
   * Study design - training vs. test sets
   * Conceptual issues - out of sample error, ROC curves
-  * Practical implementation - the caret package
+  * _Practical implementation - the caret package_
 * What this course depends on
   * The Data Scientist's Toolbox
   * R Programming
@@ -107,7 +108,7 @@ knit_hooks$set(plot = knitr:::hook_plot_html)
 
 ---
 
-## A useful package
+## A useful package: CARET (ml-framework)
 
 <img class=center src=../../assets/img/08_PredictionAndMachineLearning/caret.png height=350>
 

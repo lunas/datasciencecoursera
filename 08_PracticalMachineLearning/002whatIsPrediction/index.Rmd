@@ -16,6 +16,7 @@ mode        : selfcontained # {standalone, draft}
 
 
 ```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F}
+library(knitr)
 # make this an external chunk that can be included in any file
 options(width = 100)
 opts_chunk$set(message = F, error = F, warning = F, comment = NA, fig.align = 'center', dpi = 100, tidy = F, cache.path = '.cache/', fig.path = 'fig/')
@@ -36,6 +37,7 @@ knit_hooks$set(plot = knitr:::hook_plot_html)
 
 <img class="center" src=../../assets/img/08_PredictionAndMachineLearning/centraldogma.png height=450>
 
+Often overlooked: importance of the sampling!
 ---
 
 ## What can go wrong
@@ -45,6 +47,7 @@ knit_hooks$set(plot = knitr:::hook_plot_html)
 
 http://www.sciencemag.org/content/343/6176/1203.full.pdf
 
+* they forgot that the seaerch terms will change over time: so while their algorh. was working very well at the time, that doesn't say much about whether it will be as accurate a year later.
 ---
 
 ## Components of a predictor
